@@ -9,14 +9,13 @@ import org.apache.commons.imaging.common.ImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
 import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import person.concise.photowatermark.domain.PhotoMetaInfo;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,7 +36,7 @@ public class PhotoService {
     private int logo_y = 0;             // logo打印的y轴
 
 
-
+    // just for local test
     public void start(String url) {
         try {
             // 加载图片
@@ -63,6 +62,43 @@ public class PhotoService {
             throw new RuntimeException(e);
         }
     }
+
+    
+    public byte[] start(MultipartFile originalImageFile) {
+        byte[] outputImg = null;
+        try {
+            // 加载图片
+            File file = new File(originalImageFile.getOriginalFilename());
+            byte[] bytes = originalImageFile.getBytes();
+            FileOutputStream fos = new FileOutputStream(file);
+            fos.write(bytes);
+            fos.close();
+//
+//            originalImageFile.transferTo(file);
+//            System.out.println(file.getName());
+            PhotoMetaInfo photoMetaInfo = getPhotoMetaInfo(file);
+            BufferedImage originalImage = ImageIO.read(file);
+            BufferedImage outPutImg = createOutPutImg(photoMetaInfo, originalImage);
+            Graphics2D g2d = outPutImg.createGraphics();
+            fillOutImg(g2d, originalImage);
+            fillCameraLogo(outPutImg, g2d);
+            // 设置字体和颜色
+            Font font = new Font("Arial", Font.PLAIN, 150);
+            g2d.setFont(font);
+            g2d.setColor(Color.BLACK);
+            fillCameraModel(g2d, photoMetaInfo);
+            fillShotDetailInfo(g2d, photoMetaInfo);
+            g2d.setColor(Color.gray);
+            fillLens(g2d, photoMetaInfo);
+            fillShotDateTime(g2d, photoMetaInfo);
+            g2d.dispose();
+            outputImg = outPutFile(outPutImg);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return outputImg;
+    }
+
 
     /** 获取相片的元数据 */
     public PhotoMetaInfo getPhotoMetaInfo(File originalImageFile) {
@@ -221,10 +257,17 @@ public class PhotoService {
         g2d.drawString(dateTime, dateTime_x, dateTime_y);
     }
 
-    /** 保存文件 */
-    public void outPutFile(BufferedImage outPutImg) throws IOException {
-        File outputImageFile = new File("C:\\Users\\yang\\Desktop\\testImage\\test\\test.jpg");
-        ImageIO.write(outPutImg, "jpg", outputImageFile);
+    /**
+     * 保存文件
+     *
+     * @return
+     */
+    public byte[] outPutFile(BufferedImage outPutImg) throws IOException {
+//        File outputImageFile = new File("C:\\Users\\yang\\Desktop\\testImage\\test\\test.jpg");
+//        ImageIO.write(outPutImg, "jpg", outputImageFile);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        ImageIO.write(outPutImg, "jpg", byteArrayOutputStream);
+        return byteArrayOutputStream.toByteArray();
     }
 
 }
